@@ -16,7 +16,9 @@ use Test::Fatal qw{exception};
 use File::Path  qw{make_path};
 use File::Temp  qw{tempdir};
 use File::Slurper::Temp();
+use Cpanel::JSON::XS();
 use IO::Compress::Gzip();
+use IO::Uncompress::Gunzip();
 use Scalar::Util();
 
 use Perl::Critic::Distribution;
@@ -210,6 +212,14 @@ subtest 'the data of a collector that is not registered is kept' => sub {
     is( $one->{calls}, $calls, 'so a process that registers it again parses nothing' );
 };
 
+# The key that this version of the module writes, read back from a cache it
+# wrote, so that a case can be a current cache with one thing wrong in it.
+sub key_in {
+    my ($gz) = @_;
+    IO::Uncompress::Gunzip::gunzip( $gz => \my $json ) or die "$gz: $IO::Uncompress::Gunzip::GunzipError";
+    return Cpanel::JSON::XS->new->decode($json)->{key};
+}
+
 subtest 'a cache that cannot be used is ignored' => sub {
     local %Perl::Critic::Distribution::COLLECTORS;
     my $root  = dist();
@@ -223,8 +233,16 @@ subtest 'a cache that cannot be used is ignored' => sub {
 
     # The magic number of gzip, and then no gzip.
     my $not_gzip = chr(0x1f) . chr(0x8b) . ' not gzip';
-    foreach my $case ( [ 'not gzip', $not_gzip, 0 ], [ 'not JSON', '{ not json', 1 ], [ 'from another version', '{"key":"0/bogus","files":{}}', 1 ] ) {
-        my ( $label, $bytes, $compress ) = @$case;
+
+    # A current cache in which one file has a stamp and nothing else.
+    my $entry = '{"key":"' . key_in($file) . '","files":{"' . "$root/lib/Some.pm" . '":{"stamp":"' . $D->stamp("$root/lib/Some.pm") . '"}}}';
+    foreach my $case (
+        [ 'that is not gzip',        $not_gzip,                      0, 5 ],
+        [ 'that is not JSON',        '{ not json',                   1, 5 ],
+        [ 'from another version',    '{"key":"0/bogus","files":{}}', 1, 5 ],
+        [ 'with an entry cut short', $entry,                         1, 5 ],
+    ) {
+        my ( $label, $bytes, $compress, $parses ) = @$case;
         if ($compress) {
             IO::Compress::Gzip::gzip( \$bytes => \my $gz );
             $bytes = $gz;
@@ -234,7 +252,7 @@ subtest 'a cache that cannot be used is ignored' => sub {
         my $calls = $one->{calls};
         local %Perl::Critic::Distribution::FOR;
         my $got = $D->for_file( "$root/lib/Some.pm", cache_dir => $cache )->collected('one');
-        is( $one->{calls} - $calls, 5, "a cache that is $label is read as no cache" );
+        is( $one->{calls} - $calls, $parses, "a cache $label is not trusted" );
         is_deeply( $got->{"$root/lib/Some.pm"}{subs}, ['go'], 'and the data is right' );
     }
 };
@@ -276,12 +294,15 @@ subtest 'the cache of a root that is gone is removed' => sub {
     my ($gone_cache) = glob("$cache/*.json.gz");
     File::Path::remove_tree($gone);
 
+    write_file( "$cache/notes.txt", 'mine' );
+
     my $kept = dist();
     {
         local %Perl::Critic::Distribution::FOR;
         $D->for_file( "$kept/lib/Some.pm", cache_dir => $cache )->collected('one');
     }
-    ok( !-e $gone_cache, 'the next write removes it' );
+    ok( !-e $gone_cache,       'the next write removes it' );
+    ok( -e "$cache/notes.txt", 'and leaves alone a file that is not a cache' );
     is( scalar( () = glob("$cache/*.json.gz") ), 1, 'and keeps the one whose root is there' );
 };
 
