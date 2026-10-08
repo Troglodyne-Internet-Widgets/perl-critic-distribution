@@ -104,9 +104,9 @@ Two policies that pass different `cache_dir` values to `for_file` get two
 objects, and so two parses.  Leave `cache_dir` to its default, or give each
 policy the same one.
 
-# METHODS
+## METHODS
 
-## register
+### register
 
 ```perl
 Perl::Critic::Distribution->register( name => $name, version => $version, collect => \&collect );
@@ -124,7 +124,7 @@ JSON can hold.
 Registering a name again replaces it.  Returns the name.  Dies on a missing
 name or a `collect` that is not a code reference.
 
-## stamp
+### stamp
 
 ```perl
 my $stamp = Perl::Critic::Distribution->stamp($file);
@@ -136,7 +136,7 @@ renaming a new file over the old one, and the times are to the nanosecond, so
 an edit that keeps the size within one second still changes it.  Undef if the
 file cannot be read.
 
-## root\_of
+### root\_of
 
 ```perl
 my ( $root, $area ) = Perl::Critic::Distribution->root_of($file);
@@ -152,13 +152,13 @@ in it.  So a file in `t/lib` is in `t/`, not in a distribution whose root is
 `t/`.  With no such directory anywhere above, the root is the directory that
 holds the nearest `bin/`, `lib/`, `t/` or `xt/` that the file is in.
 
-## default\_cache\_dir
+### default\_cache\_dir
 
 `$XDG_CACHE_HOME/perl-critic-distribution`, or
 `~/.cache/perl-critic-distribution` when `XDG_CACHE_HOME` is not set.  Undef
 when neither that nor `HOME` is set.
 
-## for\_file
+### for\_file
 
 ```perl
 my $dist = Perl::Critic::Distribution->for_file( $file, cache_dir => $dir );
@@ -172,11 +172,11 @@ for a file in none.  Source with no file name, such as a string handed to
 Undef keeps no cache.  The same root and cache directory return the same
 object for the life of the process.
 
-## root
+### root
 
 The root directory of the distribution.
 
-## collected
+### collected
 
 ```perl
 my $by_file = $dist->collected($name);
@@ -188,7 +188,7 @@ parse is not in it.  Reads the distribution the first time any collector asks,
 and again for a collector that registered after that.  Dies on a name that is
 not registered.
 
-## area\_of
+### area\_of
 
 ```perl
 my $area = $dist->area_of($file);
@@ -197,13 +197,13 @@ my $area = $dist->area_of($file);
 `bin`, `lib`, `t` or `xt`: which part of the distribution a file it read
 is in.  Undef for a file it did not read.
 
-## stamp\_of
+### stamp\_of
 
 The stamp, as `stamp` makes it, that a file had when the distribution was
 read.  A policy that keeps derived data in its `stash` can compare it, to
 tell which files changed.  Undef for a file it did not read.
 
-## stash
+### stash
 
 ```perl
 my $data = $dist->stash($name);
@@ -216,7 +216,7 @@ another version of the collector.
 It is for data that a policy works out from what its collector returned for
 every file, and that costs time to work out again.
 
-## keep
+### keep
 
 ```
 $dist->keep( $name, $data );
@@ -224,6 +224,15 @@ $dist->keep( $name, $data );
 
 Keeps `$data` as the stash of `$name`, and writes the cache.  Returns true if
 the cache was written, which is never when there is no cache directory.
+
+# BUGS
+
+Please report any bugs or feature requests on the bugtracker website
+[https://github.com/teodesian/perl-critic-distribution/issues](https://github.com/teodesian/perl-critic-distribution/issues)
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
 
 # AUTHORS
 
