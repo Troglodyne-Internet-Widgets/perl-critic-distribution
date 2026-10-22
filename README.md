@@ -4,7 +4,7 @@ Perl::Critic::Distribution - Parse a distribution once, for every policy that ne
 
 # VERSION
 
-version 0.001
+version 0.002
 
 # SYNOPSIS
 
@@ -162,6 +162,7 @@ when neither that nor `HOME` is set.
 
 ```perl
 my $dist = Perl::Critic::Distribution->for_file( $file, cache_dir => $dir );
+my $dist = Perl::Critic::Distribution->for_file( $file, cache => $on, cache_dir => $dir );
 ```
 
 The distribution that `$file` belongs to, as `root_of` finds it, or undef
@@ -171,6 +172,10 @@ for a file in none.  Source with no file name, such as a string handed to
 `cache_dir` is where the cache is kept.  Without it, `default_cache_dir`.
 Undef keeps no cache.  The same root and cache directory return the same
 object for the life of the process.
+
+`cache` is for a policy that takes the parameters of `policy_parameters`,
+and passes on what it got.  With `cache`, a false value keeps no cache, and
+an empty `cache_dir` means `default_cache_dir`.
 
 ### root
 
@@ -224,6 +229,65 @@ $dist->keep( $name, $data );
 
 Keeps `$data` as the stash of `$name`, and writes the cache.  Returns true if
 the cache was written, which is never when there is no cache directory.
+
+## FOR POLICIES
+
+What a policy that reads the whole distribution usually needs as well.
+
+### policy\_parameters
+
+```perl
+sub supported_parameters {
+    return ( { name => 'my_own', ... }, Perl::Critic::Distribution->policy_parameters() );
+}
+```
+
+The parameters `cache` and `cache_dir`, for `supported_parameters` of a
+policy.  `cache` is on by default, and an empty `cache_dir` means
+`default_cache_dir`.  Perl::Critic puts them in `$policy->{_cache}` and
+`$policy->{_cache_dir}`, which `for_file` takes as they are:
+
+```perl
+Perl::Critic::Distribution->for_file( $file, cache => $self->{_cache}, cache_dir => $self->{_cache_dir} );
+```
+
+Give every policy that reads the distribution the same `cache_dir`, or none,
+so that they share a parse.
+
+### called\_by\_perl
+
+```perl
+my @names = Perl::Critic::Distribution->called_by_perl();
+```
+
+The subs that Perl or a framework calls by name, so that no code in the
+distribution calls them: the blocks such as `BEGIN`, `AUTOLOAD`,
+`DESTROY`, `import` and `unimport`, `CLONE`, the hooks of Moose and Moo
+such as `BUILD`, and the methods of the tie interface.  A policy that judges
+a sub by who calls it leaves these alone.
+
+### walk
+
+```perl
+Perl::Critic::Distribution->walk( $ppi, $visit );
+Perl::Critic::Distribution->walk( $node, $visit, package => $package, sub => $sub );
+```
+
+Calls `$visit->( $element, $package, $sub )` for each element below
+`$node`, in source order.  `$package` is the package that the element is
+in.  `$sub` is the qualified name of the sub that the element is in, such as
+`Some::Thing::helper`, or undef outside every sub.
+
+A package statement changes the package of the statements after it in the
+same block, and a package block changes the package inside its block.  The
+visit sees the package statement, and then what is in its block, but not the
+name in the statement.  A sub statement is seen with the sub around it, and
+what is in it with the sub that it defines.  A forward declaration defines no
+sub.
+
+`package` and `sub` give the context of `$node`, for code that is not a
+whole file, such as a document parsed from inside a string.  Without them,
+`$node` is in `main` and in no sub.
 
 # BUGS
 
