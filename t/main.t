@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!perl
 use 5.014;
 use strict;
 use warnings FATAL => 'all';
@@ -58,7 +58,11 @@ sub counter {
             my ( $ppi, $file, $area ) = @_;
             $seen{calls}++;
             $seen{docs}{$file} = Scalar::Util::refaddr($ppi);
-            return { area => $area, subs => [ map { $_->name } @{ $ppi->find('PPI::Statement::Sub') || [] } ] };
+            my @subs;
+            foreach my $sub ( @{ $ppi->find('PPI::Statement::Sub') || [] } ) {
+                push @subs, $sub->name;
+            }
+            return { area => $area, subs => \@subs };
         },
     );
     return \%seen;
@@ -326,7 +330,9 @@ subtest 'for_file, with the parameters of a policy' => sub {
 
 subtest 'called_by_perl' => sub {
     my %name = map { $_ => 1 } $D->called_by_perl();
-    ok( $name{$_},   "$_ is called by perl" ) for qw{BEGIN DESTROY import AUTOLOAD BUILD FETCH};
+    foreach my $called (qw{BEGIN DESTROY import AUTOLOAD BUILD FETCH}) {
+        ok( $name{$called}, "$called is called by perl" );
+    }
     ok( !$name{new}, 'and new is not, because code calls it' );
 };
 

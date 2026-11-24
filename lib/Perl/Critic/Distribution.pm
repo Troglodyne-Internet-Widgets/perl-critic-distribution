@@ -7,6 +7,8 @@ use 5.014;
 use strict;
 use warnings FATAL => 'all';
 
+no autovivification;
+
 use re '/aa';
 
 use Readonly;
@@ -362,7 +364,12 @@ sub root_of {
         my $ancestor = File::Spec->catpath( $volume, File::Spec->catdir( @dirs[ 0 .. $depth ] ), q{} );
         my $area     = $depth < $#dirs && $area{ $dirs[ $depth + 1 ] } ? $dirs[ $depth + 1 ] : undef;
 
-        if ( List::Util::any { -e File::Spec->catfile( $ancestor, $_ ) } @DIST_MARKERS ) {
+        my $marked = 0;
+        foreach my $marker (@DIST_MARKERS) {
+            $marked = -e File::Spec->catfile( $ancestor, $marker ) and last;
+        }
+
+        if ($marked) {
             return if !defined $area;
             return ( $ancestor, $area );
         }
