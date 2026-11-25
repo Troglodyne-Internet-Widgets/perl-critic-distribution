@@ -297,8 +297,10 @@ with the L<PPI::Document>, the absolute path of the file, and C<bin>, C<lib>,
 C<t> or C<xt>.  It returns what that policy needs from the file, as data that
 JSON can hold.
 
-Registering a name again replaces it.  Returns the name.  Dies on a missing
-name or a C<collect> that is not a code reference.
+Registering a name again replaces it.  Dies on a missing name or a
+C<collect> that is not a code reference.
+
+Returns Str, the name.
 
 =cut
 
@@ -320,8 +322,9 @@ sub register {
 What changes when a file does: its device, inode, size, and modification and
 change times, as one string.  The inode changes when an editor saves by
 renaming a new file over the old one, and the times are to the nanosecond, so
-an edit that keeps the size within one second still changes it.  Undef if the
-file cannot be read.
+an edit that keeps the size within one second still changes it.
+
+Returns Str, or undef if the file cannot be read.
 
 =cut
 
@@ -337,8 +340,7 @@ sub stamp {
     my ( $root, $area ) = Perl::Critic::Distribution->root_of($file);
 
 The root of the distribution that C<$file> belongs to, and which of F<bin/>,
-F<lib/>, F<t/> and F<xt/> of it the file is in.  An empty list when it is in
-none of them.
+F<lib/>, F<t/> and F<xt/> of it the file is in.
 
 The root is the nearest directory above the file with a F<dist.ini>,
 F<Makefile.PL>, F<Build.PL>, F<META.json>, F<META.yml>, F<cpanfile> or F<.git>
@@ -350,6 +352,9 @@ A module in F<blib/lib> of a root is in F<lib/> of that root.  ExtUtils::MakeMak
 and Module::Build copy F<lib/> there, and the tests of a build, such as the
 author test of Perl::Critic, read that copy.  Nothing else in F<blib/> is in
 any part.
+
+Returns a list of two Str, the root and the part, or an empty list when the
+file is in none of the parts.
 
 =cut
 
@@ -387,8 +392,11 @@ sub root_of {
 =head3 default_cache_dir
 
 F<$XDG_CACHE_HOME/perl-critic-distribution>, or
-F<~/.cache/perl-critic-distribution> when C<XDG_CACHE_HOME> is not set.  Undef
-when neither that nor C<HOME> is set.
+F<~/.cache/perl-critic-distribution> when C<XDG_CACHE_HOME> is not set.
+
+Returns Str, or undef when neither that nor C<HOME> is set.
+
+    my $dir = Perl::Critic::Distribution->default_cache_dir();
 
 =cut
 
@@ -414,6 +422,8 @@ C<cache> is for a policy that takes the parameters of C<policy_parameters>,
 and passes on what it got.  With C<cache>, a false value keeps no cache, and
 an empty C<cache_dir> means C<default_cache_dir>.
 
+Returns Perl::Critic::Distribution, or undef for a file in no distribution.
+
 =cut
 
 sub for_file {
@@ -435,6 +445,10 @@ sub for_file {
 
 The root directory of the distribution.
 
+Returns Str, the absolute path.
+
+    my $root = $dist->root();
+
 =cut
 
 sub root {
@@ -446,11 +460,13 @@ sub root {
 
     my $by_file = $dist->collected($name);
 
-What the collector C<$name> returned for each file of the distribution, as a
-hash reference keyed by the absolute path of the file.  A file that PPI cannot
+What the collector C<$name> returned for each file of the distribution, keyed
+by the absolute path of the file.  A file that PPI cannot
 parse is not in it.  Reads the distribution the first time any collector asks,
 and again for a collector that registered after that.  Dies on a name that is
 not registered.
+
+Returns HashRef, from each file to what the collector returned for it.
 
 =cut
 
@@ -469,7 +485,9 @@ sub collected {
     my $area = $dist->area_of($file);
 
 C<bin>, C<lib>, C<t> or C<xt>: which part of the distribution a file it read
-is in.  Undef for a file it did not read.
+is in.
+
+Returns Str, or undef for a file that it did not read.
 
 =cut
 
@@ -485,7 +503,11 @@ sub area_of {
 
 The stamp, as C<stamp> makes it, that a file had when the distribution was
 read.  A policy that keeps derived data in its C<stash> can compare it, to
-tell which files changed.  Undef for a file it did not read.
+tell which files changed.
+
+Returns Str, or undef for a file that it did not read.
+
+    my $stamp = $dist->stamp_of($file);
 
 =cut
 
@@ -502,11 +524,12 @@ sub stamp_of {
     my $data = $dist->stash($name);
 
 What the policy registered as C<$name> last kept with C<keep>, in this process
-or in the cache on disk.  Undef when there is nothing, or when it was kept by
-another version of the collector.
+or in the cache on disk.  It is for data that a policy works out from what its
+collector returned for every file, and that costs time to work out again.
+Dies on a name that is not registered.
 
-It is for data that a policy works out from what its collector returned for
-every file, and that costs time to work out again.
+Returns Any, the data, or undef when there is nothing, or when it was kept by
+another version of the collector.
 
 =cut
 
@@ -525,8 +548,11 @@ sub stash {
 
     $dist->keep( $name, $data );
 
-Keeps C<$data> as the stash of C<$name>, and writes the cache.  Returns true if
-the cache was written, which is never when there is no cache directory.
+Keeps C<$data> as the stash of C<$name>, and writes the cache.  Dies on a name
+that is not registered.
+
+Returns Bool, true if the cache was written, which is never when there is no
+cache directory.
 
 =cut
 
@@ -560,6 +586,8 @@ C<< $policy->{_cache_dir} >>, which C<for_file> takes as they are:
 Give every policy that reads the distribution the same C<cache_dir>, or none,
 so that they share a parse.
 
+Returns a list of HashRef, one for each parameter.
+
 =cut
 
 sub policy_parameters {
@@ -588,6 +616,8 @@ distribution calls them: the blocks such as C<BEGIN>, C<AUTOLOAD>,
 C<DESTROY>, C<import> and C<unimport>, C<CLONE>, the hooks of Moose and Moo
 such as C<BUILD>, and the methods of the tie interface.  A policy that judges
 a sub by who calls it leaves these alone.
+
+Returns a list of Str, the names.
 
 =cut
 

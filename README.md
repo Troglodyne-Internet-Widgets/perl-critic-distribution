@@ -4,7 +4,7 @@ Perl::Critic::Distribution - Parse a distribution once, for every policy that ne
 
 # VERSION
 
-version 0.002
+version 0.003
 
 # SYNOPSIS
 
@@ -121,8 +121,10 @@ with the [PPI::Document](https://metacpan.org/pod/PPI%3A%3ADocument), the absolu
 `t` or `xt`.  It returns what that policy needs from the file, as data that
 JSON can hold.
 
-Registering a name again replaces it.  Returns the name.  Dies on a missing
-name or a `collect` that is not a code reference.
+Registering a name again replaces it.  Dies on a missing name or a
+`collect` that is not a code reference.
+
+Returns Str, the name.
 
 ### stamp
 
@@ -133,8 +135,9 @@ my $stamp = Perl::Critic::Distribution->stamp($file);
 What changes when a file does: its device, inode, size, and modification and
 change times, as one string.  The inode changes when an editor saves by
 renaming a new file over the old one, and the times are to the nanosecond, so
-an edit that keeps the size within one second still changes it.  Undef if the
-file cannot be read.
+an edit that keeps the size within one second still changes it.
+
+Returns Str, or undef if the file cannot be read.
 
 ### root\_of
 
@@ -143,8 +146,7 @@ my ( $root, $area ) = Perl::Critic::Distribution->root_of($file);
 ```
 
 The root of the distribution that `$file` belongs to, and which of `bin/`,
-`lib/`, `t/` and `xt/` of it the file is in.  An empty list when it is in
-none of them.
+`lib/`, `t/` and `xt/` of it the file is in.
 
 The root is the nearest directory above the file with a `dist.ini`,
 `Makefile.PL`, `Build.PL`, `META.json`, `META.yml`, `cpanfile` or `.git`
@@ -152,11 +154,24 @@ in it.  So a file in `t/lib` is in `t/`, not in a distribution whose root is
 `t/`.  With no such directory anywhere above, the root is the directory that
 holds the nearest `bin/`, `lib/`, `t/` or `xt/` that the file is in.
 
+A module in `blib/lib` of a root is in `lib/` of that root.  ExtUtils::MakeMaker
+and Module::Build copy `lib/` there, and the tests of a build, such as the
+author test of Perl::Critic, read that copy.  Nothing else in `blib/` is in
+any part.
+
+Returns a list of two Str, the root and the part, or an empty list when the
+file is in none of the parts.
+
 ### default\_cache\_dir
 
 `$XDG_CACHE_HOME/perl-critic-distribution`, or
-`~/.cache/perl-critic-distribution` when `XDG_CACHE_HOME` is not set.  Undef
-when neither that nor `HOME` is set.
+`~/.cache/perl-critic-distribution` when `XDG_CACHE_HOME` is not set.
+
+Returns Str, or undef when neither that nor `HOME` is set.
+
+```perl
+my $dir = Perl::Critic::Distribution->default_cache_dir();
+```
 
 ### for\_file
 
@@ -177,9 +192,17 @@ object for the life of the process.
 and passes on what it got.  With `cache`, a false value keeps no cache, and
 an empty `cache_dir` means `default_cache_dir`.
 
+Returns Perl::Critic::Distribution, or undef for a file in no distribution.
+
 ### root
 
 The root directory of the distribution.
+
+Returns Str, the absolute path.
+
+```perl
+my $root = $dist->root();
+```
 
 ### collected
 
@@ -187,11 +210,13 @@ The root directory of the distribution.
 my $by_file = $dist->collected($name);
 ```
 
-What the collector `$name` returned for each file of the distribution, as a
-hash reference keyed by the absolute path of the file.  A file that PPI cannot
+What the collector `$name` returned for each file of the distribution, keyed
+by the absolute path of the file.  A file that PPI cannot
 parse is not in it.  Reads the distribution the first time any collector asks,
 and again for a collector that registered after that.  Dies on a name that is
 not registered.
+
+Returns HashRef, from each file to what the collector returned for it.
 
 ### area\_of
 
@@ -200,13 +225,21 @@ my $area = $dist->area_of($file);
 ```
 
 `bin`, `lib`, `t` or `xt`: which part of the distribution a file it read
-is in.  Undef for a file it did not read.
+is in.
+
+Returns Str, or undef for a file that it did not read.
 
 ### stamp\_of
 
 The stamp, as `stamp` makes it, that a file had when the distribution was
 read.  A policy that keeps derived data in its `stash` can compare it, to
-tell which files changed.  Undef for a file it did not read.
+tell which files changed.
+
+Returns Str, or undef for a file that it did not read.
+
+```perl
+my $stamp = $dist->stamp_of($file);
+```
 
 ### stash
 
@@ -215,11 +248,12 @@ my $data = $dist->stash($name);
 ```
 
 What the policy registered as `$name` last kept with `keep`, in this process
-or in the cache on disk.  Undef when there is nothing, or when it was kept by
-another version of the collector.
+or in the cache on disk.  It is for data that a policy works out from what its
+collector returned for every file, and that costs time to work out again.
+Dies on a name that is not registered.
 
-It is for data that a policy works out from what its collector returned for
-every file, and that costs time to work out again.
+Returns Any, the data, or undef when there is nothing, or when it was kept by
+another version of the collector.
 
 ### keep
 
@@ -227,8 +261,11 @@ every file, and that costs time to work out again.
 $dist->keep( $name, $data );
 ```
 
-Keeps `$data` as the stash of `$name`, and writes the cache.  Returns true if
-the cache was written, which is never when there is no cache directory.
+Keeps `$data` as the stash of `$name`, and writes the cache.  Dies on a name
+that is not registered.
+
+Returns Bool, true if the cache was written, which is never when there is no
+cache directory.
 
 ## FOR POLICIES
 
@@ -254,6 +291,8 @@ Perl::Critic::Distribution->for_file( $file, cache => $self->{_cache}, cache_dir
 Give every policy that reads the distribution the same `cache_dir`, or none,
 so that they share a parse.
 
+Returns a list of HashRef, one for each parameter.
+
 ### called\_by\_perl
 
 ```perl
@@ -265,6 +304,8 @@ distribution calls them: the blocks such as `BEGIN`, `AUTOLOAD`,
 `DESTROY`, `import` and `unimport`, `CLONE`, the hooks of Moose and Moo
 such as `BUILD`, and the methods of the tie interface.  A policy that judges
 a sub by who calls it leaves these alone.
+
+Returns a list of Str, the names.
 
 ### walk
 
@@ -292,7 +333,7 @@ whole file, such as a document parsed from inside a string.  Without them,
 # BUGS
 
 Please report any bugs or feature requests on the bugtracker website
-[https://github.com/teodesian/perl-critic-distribution/issues](https://github.com/teodesian/perl-critic-distribution/issues)
+[https://github.com/Troglodyne-Internet-Widgets/perl-critic-distribution/issues](https://github.com/Troglodyne-Internet-Widgets/perl-critic-distribution/issues)
 
 When submitting a bug or request, please include a test-file or a
 patch to an existing test-file that illustrates the bug or desired
@@ -303,6 +344,11 @@ feature.
 Current Maintainers:
 
 - George S. Baugh <george@troglodyne.net>
+
+# CONTRIBUTORS
+
+- troglodyne-bot <troglodyne-bot@users.noreply.github.com>
+- troglodyne-robot <trogbot@troglodyne.net>
 
 # COPYRIGHT AND LICENSE
 
