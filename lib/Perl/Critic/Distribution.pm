@@ -346,6 +346,11 @@ in it.  So a file in F<t/lib> is in F<t/>, not in a distribution whose root is
 F<t/>.  With no such directory anywhere above, the root is the directory that
 holds the nearest F<bin/>, F<lib/>, F<t/> or F<xt/> that the file is in.
 
+A module in F<blib/lib> of a root is in F<lib/> of that root.  ExtUtils::MakeMaker
+and Module::Build copy F<lib/> there, and the tests of a build, such as the
+author test of Perl::Critic, read that copy.  Nothing else in F<blib/> is in
+any part.
+
 =cut
 
 sub root_of {
@@ -363,6 +368,7 @@ sub root_of {
     foreach my $depth ( reverse 0 .. $#dirs ) {
         my $ancestor = File::Spec->catpath( $volume, File::Spec->catdir( @dirs[ 0 .. $depth ] ), q{} );
         my $area     = $depth < $#dirs && $area{ $dirs[ $depth + 1 ] } ? $dirs[ $depth + 1 ] : undef;
+        $area //= 'lib' if $depth + 1 < $#dirs && $dirs[ $depth + 1 ] eq 'blib' && $dirs[ $depth + 2 ] eq 'lib';
 
         my $marked = 0;
         foreach my $marker (@DIST_MARKERS) {
