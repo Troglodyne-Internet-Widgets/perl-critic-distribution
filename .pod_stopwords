@@ -33,6 +33,7 @@ BackPAN
 backtick
 basename
 Baugh
+Bool
 bugtracker
 checksummed
 checksumming
@@ -197,6 +198,7 @@ sshd
 SSL
 stdin
 stdout
+Str
 Subclasses
 subdir
 subdirectory
